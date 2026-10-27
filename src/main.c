@@ -301,9 +301,14 @@ int main(void)
     irqEnable(IRQ_VBLANK);
     SetMode(MODE_3 | BG2_ENABLE);
 
+    int needs_redraw = 1;
+
     while (1) {
         scanKeys();
         u16 down = keysDown();
+
+        if (down)
+            needs_redraw = 1;
 
         if (screen == SCREEN_MENU) {
             if (down & KEY_UP) {
@@ -341,11 +346,15 @@ int main(void)
             if (down & KEY_B) screen = SCREEN_MENU;
         }
 
-        switch (screen) {
-            case SCREEN_MENU:    draw_menu(); break;
-            case SCREEN_OPTIONS: draw_options(); break;
-            case SCREEN_CREDITS: draw_credits(); break;
-            case SCREEN_SESSION: draw_session(); break;
+        if (needs_redraw) {
+            VBlankIntrWait();
+            switch (screen) {
+                case SCREEN_MENU:    draw_menu(); break;
+                case SCREEN_OPTIONS: draw_options(); break;
+                case SCREEN_CREDITS: draw_credits(); break;
+                case SCREEN_SESSION: draw_session(); break;
+            }
+            needs_redraw = 0;
         }
 
         VBlankIntrWait();
