@@ -233,13 +233,10 @@ static void save_test_marker(void)
     SRAM[0] = magic[0];
 }
 
-static void draw_menu(void)
+static void draw_menu_panel(void)
 {
     const char *items[4] = {"NEW GAME", "CONTINUE", "OPTIONS", "CREDITS"};
     int has_save = save_valid();
-
-    draw_city();
-    draw_title();
 
     rect(40, 72, 160, 78, rgb(2, 3, 8));
     rect(42, 74, 156, 74, rgb(5, 6, 12));
@@ -263,6 +260,13 @@ static void draw_menu(void)
 
     text("A SELECT", 48, 138, 1, COL_GOLD);
     text("B BACK", 142, 138, 1, COL_GOLD);
+}
+
+static void draw_menu(void)
+{
+    draw_city();
+    draw_title();
+    draw_menu_panel();
 }
 
 static void draw_options(void)
@@ -302,6 +306,9 @@ int main(void)
     SetMode(MODE_3 | BG2_ENABLE);
 
     int needs_redraw = 1;
+    enum Screen drawn_screen = (enum Screen)-1;
+    int drawn_selected = -1;
+    int drawn_music_on = -1;
 
     while (1) {
         scanKeys();
@@ -338,22 +345,45 @@ int main(void)
                 }
             }
         } else if (screen == SCREEN_OPTIONS) {
-            if (down & KEY_A) music_on = !music_on;
-            if (down & KEY_B) screen = SCREEN_MENU;
+            if (down & KEY_A)
+                music_on = !music_on;
+            if (down & KEY_B)
+                screen = SCREEN_MENU;
         } else if (screen == SCREEN_CREDITS) {
-            if (down & KEY_B) screen = SCREEN_MENU;
+            if (down & KEY_B)
+                screen = SCREEN_MENU;
         } else if (screen == SCREEN_SESSION) {
-            if (down & KEY_B) screen = SCREEN_MENU;
+            if (down & KEY_B)
+                screen = SCREEN_MENU;
         }
 
         if (needs_redraw) {
-            VBlankIntrWait();
-            switch (screen) {
-                case SCREEN_MENU:    draw_menu(); break;
-                case SCREEN_OPTIONS: draw_options(); break;
-                case SCREEN_CREDITS: draw_credits(); break;
-                case SCREEN_SESSION: draw_session(); break;
+            if (screen != drawn_screen ||
+                (screen == SCREEN_MENU && selected != drawn_selected) ||
+                (screen == SCREEN_OPTIONS && music_on != drawn_music_on)) {
+
+                VBlankIntrWait();
+
+                if (screen != drawn_screen) {
+                    switch (screen) {
+                        case SCREEN_MENU:    draw_menu(); break;
+                        case SCREEN_OPTIONS: draw_options(); break;
+                        case SCREEN_CREDITS: draw_credits(); break;
+                        case SCREEN_SESSION: draw_session(); break;
+                    }
+                } else if (screen == SCREEN_MENU &&
+                           selected != drawn_selected) {
+                    draw_menu_panel();
+                } else if (screen == SCREEN_OPTIONS &&
+                           music_on != drawn_music_on) {
+                    draw_options();
+                }
+
+                drawn_screen = screen;
+                drawn_selected = selected;
+                drawn_music_on = music_on;
             }
+
             needs_redraw = 0;
         }
 
