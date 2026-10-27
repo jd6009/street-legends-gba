@@ -650,7 +650,8 @@ int main(void)
             if (screen != drawn_screen ||
                 (screen == SCREEN_MENU && selected != drawn_selected) ||
                 (screen == SCREEN_OPTIONS && music_on != drawn_music_on) ||
-                (screen == SCREEN_BEDROOM && player_moved)) {
+                (screen == SCREEN_BEDROOM && player_moved) ||
+                (screen == SCREEN_WARDROBE && down)) {
 
                 VBlankIntrWait();
 
@@ -665,6 +666,8 @@ int main(void)
                     }
                 } else if (screen == SCREEN_BEDROOM && player_moved) {
                     draw_bedroom();
+                } else if (screen == SCREEN_WARDROBE && down) {
+                    draw_wardrobe();
                 } else if (screen == SCREEN_MENU &&
                            selected != drawn_selected) {
                     if (drawn_selected >= 0 && drawn_selected < 4)
