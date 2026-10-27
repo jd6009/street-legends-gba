@@ -363,7 +363,7 @@ static void draw_player(void)
     rect(x - 5, y - 8, 2, 3, hair[appearance_hair & 3]);
 }
 
-static void draw_bedroom(void)
+static void draw_bedroom_background(void)
 {
     /* Floor and walls: Neon Grit amber/blue palette. */
     rect(0, 0, SCREEN_W, SCREEN_H, RGB5(8, 7, 10));
@@ -435,15 +435,30 @@ static void draw_bedroom(void)
     line(96, 55, 104, 61, RGB5(30, 8, 14));
     line(104, 55, 96, 61, RGB5(30, 8, 14));
 
+}
+
+static u16 bedroom_background[SCREEN_W * SCREEN_H];
+static int bedroom_background_ready = 0;
+
+static void draw_bedroom(void)
+{
+    if (!bedroom_background_ready) {
+        draw_bedroom_background();
+        memcpy(bedroom_background, (const void *)VRAM,
+               sizeof(bedroom_background));
+        bedroom_background_ready = 1;
+    } else {
+        memcpy((void *)VRAM, bedroom_background,
+               sizeof(bedroom_background));
+    }
+
     draw_player();
 
-    /* Compact interaction prompt. */
+    rect(57, 136, 126, 16, RGB5(3, 4, 9));
     if (near_wardrobe()) {
-        rect(57, 136, 126, 16, RGB5(3, 4, 9));
         line(57, 136, 182, 136, RGB5(8, 19, 30));
         text("A WARDROBE", 69, 141, 1, COL_GOLD);
     } else {
-        rect(57, 136, 126, 16, RGB5(3, 4, 9));
         text("D PAD MOVE", 72, 141, 1, COL_WHITE);
     }
 }
