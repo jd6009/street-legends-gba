@@ -31,6 +31,7 @@ $(ELF): $(OFILES)
 $(ROM): $(ELF)
 	$(OBJCOPY) -O binary $< $@
 	$(GBAFIX) $@ -tSTREETLEGEND
+	truncate -s 32768 $@
 
 $(BUILD)/%.o: $(SOURCES)/%.c
 	mkdir -p $(BUILD)
