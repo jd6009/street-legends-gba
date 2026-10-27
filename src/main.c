@@ -3,6 +3,8 @@
 
 #define SCREEN_W 240
 #define SCREEN_H 160
+#undef VRAM
+#undef SRAM
 #define VRAM ((volatile u16 *)0x06000000)
 #define SRAM ((volatile u8 *)0x0E000000)
 

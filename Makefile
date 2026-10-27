@@ -12,14 +12,14 @@ CFLAGS := -mthumb -mthumb-interwork -O2 -Wall -Wextra \
           -I$(DEVKITPRO)/libgba/include
 LDFLAGS := -mthumb -mthumb-interwork -specs=gba.specs \
            -Wl,--gc-sections \
-           -L$(DEVKITPRO)/libgba/lib -lgba
+           -L$(DEVKITPRO)/libgba/lib
 
 .PHONY: all clean
 
 all: $(TARGET).gba
 
 $(TARGET).gba: $(OFILES)
-	$(CC) $(LDFLAGS) $(OFILES) -o $@
+	$(CC) $(LDFLAGS) $(OFILES) -lgba -o $@
 
 $(BUILD)/%.o: $(SOURCES)/%.c
 	mkdir -p $(BUILD)
