@@ -527,6 +527,8 @@ int main(void)
     while (1) {
         scanKeys();
         u16 down = keysDown();
+        u16 held = keysHeld();
+        int player_moved = 0;
 
         if (down)
             needs_redraw = 1;
@@ -561,13 +563,15 @@ int main(void)
                 }
             }
         } else if (screen == SCREEN_BEDROOM) {
+            int old_x = player_x;
+            int old_y = player_y;
             int nx = player_x;
             int ny = player_y;
 
-            if (down & KEY_LEFT)  { nx -= 4; player_facing = 1; }
-            if (down & KEY_RIGHT) { nx += 4; player_facing = 2; }
-            if (down & KEY_UP)    { ny -= 4; player_facing = 3; }
-            if (down & KEY_DOWN)  { ny += 4; player_facing = 0; }
+            if (held & KEY_LEFT)  { nx -= 2; player_facing = 1; }
+            if (held & KEY_RIGHT) { nx += 2; player_facing = 2; }
+            if (held & KEY_UP)    { ny -= 2; player_facing = 3; }
+            if (held & KEY_DOWN)  { ny += 2; player_facing = 0; }
 
             if (nx < 20) nx = 20;
             if (nx > 220) nx = 220;
@@ -579,6 +583,10 @@ int main(void)
                 player_x = nx;
             if (!bedroom_blocked(player_x, ny))
                 player_y = ny;
+
+            player_moved = (player_x != old_x || player_y != old_y);
+            if (player_moved)
+                needs_redraw = 1;
 
             if ((down & KEY_A) &&
                 player_x >= 208 && player_y >= 76 && player_y <= 88) {
@@ -641,7 +649,8 @@ int main(void)
         if (needs_redraw) {
             if (screen != drawn_screen ||
                 (screen == SCREEN_MENU && selected != drawn_selected) ||
-                (screen == SCREEN_OPTIONS && music_on != drawn_music_on)) {
+                (screen == SCREEN_OPTIONS && music_on != drawn_music_on) ||
+                (screen == SCREEN_BEDROOM && player_moved)) {
 
                 VBlankIntrWait();
 
@@ -654,6 +663,8 @@ int main(void)
                         case SCREEN_BEDROOM: draw_bedroom(); break;
                         case SCREEN_WARDROBE: draw_wardrobe(); break;
                     }
+                } else if (screen == SCREEN_BEDROOM && player_moved) {
+                    draw_bedroom();
                 } else if (screen == SCREEN_MENU &&
                            selected != drawn_selected) {
                     if (drawn_selected >= 0 && drawn_selected < 4)
