@@ -23,13 +23,24 @@ enum Screen {
     SCREEN_MENU,
     SCREEN_OPTIONS,
     SCREEN_CREDITS,
-    SCREEN_SESSION
+    SCREEN_SESSION,
+    SCREEN_BEDROOM,
+    SCREEN_WARDROBE
 };
 
 static enum Screen screen = SCREEN_MENU;
 static int selected = 0;
 static int music_on = 1;
 static int continued = 0;
+
+static int player_x = 116;
+static int player_y = 108;
+static int player_facing = 0;
+static int wardrobe_choice = 0;
+static int appearance_skin = 0;
+static int appearance_hair = 0;
+static int appearance_top = 0;
+static int appearance_trousers = 0;
 
 static const u8 font[36][7] = {
     {14,17,17,31,17,17,17}, {30,17,17,30,17,17,30},
@@ -204,13 +215,18 @@ static int save_valid(void)
     const u8 magic[4] = {'S','L','G','1'};
     u8 check = 0xA5;
 
-    for (int i = 0; i < 5; i++)
-        check ^= SRAM[i];
-
     for (int i = 0; i < 4; i++)
         if (SRAM[i] != magic[i]) return 0;
 
-    return SRAM[4] == 1 && SRAM[5] == check;
+    if (SRAM[4] != 1) return 0;
+
+    /* Match the writer. Byte zero is excluded. */
+    for (int i = 1; i <= 4; i++)
+        check ^= SRAM[i];
+    for (int i = 6; i <= 9; i++)
+        check ^= SRAM[i];
+
+    return SRAM[5] == check;
 }
 
 static void save_test_marker(void)
@@ -218,19 +234,35 @@ static void save_test_marker(void)
     const u8 magic[4] = {'S','L','G','1'};
     u8 check = 0xA5;
 
-    /* Invalidate the marker before writing a new record. */
+    /* Invalidate the record before updating it. */
     SRAM[0] = 0;
 
-    for (int i = 1; i < 4; i++) SRAM[i] = magic[i];
-    SRAM[4] = 1;
+    for (int i = 1; i < 4; i++)
+        SRAM[i] = magic[i];
 
-    for (int i = 0; i < 5; i++)
+    SRAM[4] = 1;
+    SRAM[6] = (u8)appearance_skin;
+    SRAM[7] = (u8)appearance_hair;
+    SRAM[8] = (u8)appearance_top;
+    SRAM[9] = (u8)appearance_trousers;
+
+    for (int i = 1; i <= 4; i++)
+        check ^= SRAM[i];
+    for (int i = 6; i <= 9; i++)
         check ^= SRAM[i];
 
     SRAM[5] = check;
 
-    /* Write the first magic byte last. */
+    /* Commit the record by writing the first magic byte last. */
     SRAM[0] = magic[0];
+}
+
+static void load_appearance(void)
+{
+    appearance_skin = SRAM[6] & 3;
+    appearance_hair = SRAM[7] & 3;
+    appearance_top = SRAM[8] & 3;
+    appearance_trousers = SRAM[9] & 3;
 }
 
 static void draw_menu_row(int i)
@@ -278,6 +310,177 @@ static void draw_menu(void)
     draw_city();
     draw_title();
     draw_menu_panel();
+}
+
+static int near_wardrobe(void)
+{
+    /* Stand in front of the wardrobe artwork. */
+    return player_x >= 150 && player_x <= 208 &&
+           player_y >= 94 && player_y <= 110;
+}
+
+static int bedroom_blocked(int x, int y)
+{
+    if (x >= 14 && x <= 93 && y >= 48 && y <= 134)
+        return 1; /* Bed */
+
+    if (x >= 85 && x <= 144 && y >= 9 && y <= 55)
+        return 1; /* Desk */
+
+    if (x >= 151 && x <= 211 && y >= 12 && y <= 93)
+        return 1; /* Wardrobe */
+
+    if (x >= 203 && x <= 230 && y >= 9 && y <= 74)
+        return 1; /* Door artwork */
+
+    return 0;
+}
+
+static void draw_player(void)
+{
+    u16 skin[] = {RGB5(24, 15, 9), RGB5(18, 10, 6),
+                  RGB5(29, 21, 14), RGB5(10, 7, 5)};
+    u16 tops[] = {RGB5(5, 13, 26), RGB5(23, 5, 9),
+                  RGB5(5, 20, 12), RGB5(20, 13, 25)};
+    u16 pants[] = {RGB5(7, 8, 15), RGB5(15, 12, 9),
+                   RGB5(5, 12, 19), RGB5(17, 17, 17)};
+    int x = player_x;
+    int y = player_y;
+
+    /* Shadow, shoes, trousers, torso, neck, face and hair. */
+    rect(x - 5, y + 9, 11, 3, RGB5(3, 3, 5));
+    rect(x - 4, y + 7, 3, 4, RGB5(2, 2, 3));
+    rect(x + 2, y + 7, 3, 4, RGB5(2, 2, 3));
+    rect(x - 4, y + 3, 3, 5, pants[appearance_trousers & 3]);
+    rect(x + 1, y + 3, 3, 5, pants[appearance_trousers & 3]);
+    rect(x - 5, y - 3, 10, 7, tops[appearance_top & 3]);
+    rect(x - 2, y - 5, 4, 3, skin[appearance_skin & 3]);
+    rect(x - 4, y - 10, 8, 6, skin[appearance_skin & 3]);
+
+    u16 hair[] = {RGB5(4, 3, 3), RGB5(15, 8, 4),
+                  RGB5(24, 19, 10), RGB5(5, 12, 13)};
+    rect(x - 4, y - 11, 8, 3, hair[appearance_hair & 3]);
+    rect(x - 5, y - 8, 2, 3, hair[appearance_hair & 3]);
+}
+
+static void draw_bedroom(void)
+{
+    /* Floor and walls: Neon Grit amber/blue palette. */
+    rect(0, 0, SCREEN_W, SCREEN_H, RGB5(8, 7, 10));
+    rect(8, 8, 224, 144, RGB5(13, 10, 12));
+    rect(8, 8, 224, 8, RGB5(18, 13, 15));
+    rect(8, 8, 4, 144, RGB5(22, 15, 14));
+    rect(228, 8, 4, 144, RGB5(7, 12, 20));
+
+    /* Floorboards. */
+    for (int y = 20; y < 152; y += 12) {
+        line(12, y, 227, y, RGB5(18, 13, 14));
+        for (int x = 25 + ((y / 12) % 2) * 18; x < 225; x += 48)
+            line(x, y, x, y + 11, RGB5(15, 11, 12));
+    }
+
+    /* Window with blue night light. */
+    rect(24, 18, 52, 30, RGB5(3, 7, 16));
+    rect(27, 21, 46, 24, RGB5(7, 14, 25));
+    line(50, 21, 50, 45, RGB5(20, 17, 19));
+    line(27, 33, 73, 33, RGB5(20, 17, 19));
+    rect(28, 23, 5, 3, RGB5(17, 20, 27));
+    rect(60, 37, 10, 3, RGB5(12, 20, 28));
+
+    /* Bed and blanket. */
+    rect(20, 62, 67, 61, RGB5(4, 4, 7));
+    rect(19, 59, 66, 60, RGB5(21, 18, 18));
+    rect(23, 63, 58, 51, RGB5(5, 9, 17));
+    rect(25, 64, 24, 12, RGB5(22, 20, 19));
+    rect(51, 64, 28, 12, RGB5(18, 19, 22));
+    rect(25, 80, 54, 31, RGB5(7, 12, 22));
+    line(25, 80, 78, 80, RGB5(14, 21, 29));
+    line(25, 111, 78, 111, RGB5(14, 21, 29));
+
+    /* Rug. */
+    rect(93, 83, 53, 49, RGB5(5, 4, 9));
+    rect(96, 86, 47, 43, RGB5(17, 9, 13));
+    line(99, 90, 140, 90, RGB5(27, 11, 15));
+    line(99, 125, 140, 125, RGB5(27, 11, 15));
+
+    /* Desk, monitor and small warm lamp. */
+    rect(91, 20, 47, 23, RGB5(4, 4, 6));
+    rect(94, 20, 42, 18, RGB5(18, 12, 10));
+    rect(99, 23, 20, 11, RGB5(4, 9, 17));
+    rect(102, 26, 14, 5, RGB5(8, 17, 26));
+    rect(124, 24, 7, 7, RGB5(27, 17, 6));
+    rect(125, 25, 4, 4, RGB5(31, 23, 10));
+    rect(96, 39, 38, 3, RGB5(8, 7, 8));
+
+    /* Wardrobe with mirror. */
+    rect(157, 24, 48, 57, RGB5(4, 4, 6));
+    rect(160, 23, 42, 54, RGB5(21, 13, 11));
+    rect(163, 27, 18, 45, RGB5(11, 9, 12));
+    rect(184, 27, 14, 45, RGB5(4, 10, 18));
+    rect(186, 29, 10, 41, RGB5(8, 16, 26));
+    line(188, 31, 194, 31, RGB5(22, 23, 27));
+    line(187, 33, 192, 38, RGB5(16, 22, 29));
+    rect(179, 46, 2, 7, RGB5(29, 21, 10));
+    rect(190, 46, 2, 7, RGB5(29, 21, 10));
+    line(160, 77, 202, 77, RGB5(28, 17, 10));
+
+    /* Exit door. */
+    rect(209, 20, 15, 43, RGB5(4, 4, 6));
+    rect(211, 22, 11, 39, RGB5(20, 12, 10));
+    rect(219, 42, 2, 2, RGB5(30, 20, 7));
+
+    /* Small posters. */
+    rect(92, 48, 17, 23, RGB5(5, 5, 8));
+    rect(95, 51, 11, 17, RGB5(17, 5, 11));
+    line(96, 55, 104, 61, RGB5(30, 8, 14));
+    line(104, 55, 96, 61, RGB5(30, 8, 14));
+
+    draw_player();
+
+    /* Compact interaction prompt. */
+    if (near_wardrobe()) {
+        rect(57, 136, 126, 16, RGB5(3, 4, 9));
+        line(57, 136, 182, 136, RGB5(8, 19, 30));
+        text("A WARDROBE", 69, 141, 1, COL_GOLD);
+    } else {
+        rect(57, 136, 126, 16, RGB5(3, 4, 9));
+        text("D PAD MOVE", 72, 141, 1, COL_WHITE);
+    }
+}
+
+static void draw_wardrobe(void)
+{
+    draw_bedroom();
+    rect(20, 15, 200, 127, RGB5(2, 3, 8));
+    rect(22, 17, 196, 123, RGB5(7, 8, 14));
+    line(22, 17, 217, 17, COL_BLUE);
+    line(22, 139, 217, 139, COL_RED);
+
+    text("WARDROBE", 68, 24, 2, COL_WHITE);
+    text("SKIN TONE", 34, 51, 1,
+         wardrobe_choice == 0 ? COL_GOLD : COL_WHITE);
+    text("HAIR STYLE", 34, 68, 1,
+         wardrobe_choice == 1 ? COL_GOLD : COL_WHITE);
+    text("TOP", 34, 85, 1,
+         wardrobe_choice == 2 ? COL_GOLD : COL_WHITE);
+    text("TROUSERS", 34, 102, 1,
+         wardrobe_choice == 3 ? COL_GOLD : COL_WHITE);
+
+    text("<", 142, 51 + wardrobe_choice * 17, 1, COL_BLUE);
+    text(">", 190, 51 + wardrobe_choice * 17, 1, COL_BLUE);
+
+    /* Preview character at right. */
+    rect(151, 43, 43, 78, RGB5(4, 5, 10));
+    rect(154, 46, 37, 72, RGB5(10, 12, 19));
+    int old_x = player_x, old_y = player_y;
+    player_x = 173;
+    player_y = 82;
+    draw_player();
+    player_x = old_x;
+    player_y = old_y;
+
+    text("LEFT RIGHT", 135, 126, 1, COL_WHITE);
+    text("A SAVE B BACK", 111, 132, 1, COL_GOLD);
 }
 
 static void draw_options(void)
@@ -343,11 +546,13 @@ int main(void)
 
             if (down & KEY_A) {
                 if (selected == 0) {
-                    save_test_marker();
                     continued = 0;
-                    screen = SCREEN_SESSION;
+                    player_x = 116;
+                    player_y = 108;
+                    screen = SCREEN_BEDROOM;
                 } else if (selected == 1 && save_valid()) {
                     continued = 1;
+                    load_appearance();
                     screen = SCREEN_SESSION;
                 } else if (selected == 2) {
                     screen = SCREEN_OPTIONS;
@@ -355,6 +560,71 @@ int main(void)
                     screen = SCREEN_CREDITS;
                 }
             }
+        } else if (screen == SCREEN_BEDROOM) {
+            int nx = player_x;
+            int ny = player_y;
+
+            if (down & KEY_LEFT)  { nx -= 4; player_facing = 1; }
+            if (down & KEY_RIGHT) { nx += 4; player_facing = 2; }
+            if (down & KEY_UP)    { ny -= 4; player_facing = 3; }
+            if (down & KEY_DOWN)  { ny += 4; player_facing = 0; }
+
+            if (nx < 20) nx = 20;
+            if (nx > 220) nx = 220;
+            if (ny < 38) ny = 38;
+            if (ny > 132) ny = 132;
+
+            /* Test each axis independently to avoid corner trapping. */
+            if (!bedroom_blocked(nx, player_y))
+                player_x = nx;
+            if (!bedroom_blocked(player_x, ny))
+                player_y = ny;
+
+            if ((down & KEY_A) &&
+                player_x >= 208 && player_y >= 76 && player_y <= 88) {
+                screen = SCREEN_MENU;
+            } else if ((down & KEY_A) && near_wardrobe()) {
+                wardrobe_choice = 0;
+                screen = SCREEN_WARDROBE;
+            }
+
+        } else if (screen == SCREEN_WARDROBE) {
+            if (down & KEY_UP)
+                wardrobe_choice = (wardrobe_choice + 3) % 4;
+            if (down & KEY_DOWN)
+                wardrobe_choice = (wardrobe_choice + 1) % 4;
+
+            if (down & KEY_LEFT) {
+                if (wardrobe_choice == 0)
+                    appearance_skin = (appearance_skin + 3) % 4;
+                else if (wardrobe_choice == 1)
+                    appearance_hair = (appearance_hair + 3) % 4;
+                else if (wardrobe_choice == 2)
+                    appearance_top = (appearance_top + 3) % 4;
+                else
+                    appearance_trousers = (appearance_trousers + 3) % 4;
+            }
+
+            if (down & KEY_RIGHT) {
+                if (wardrobe_choice == 0)
+                    appearance_skin = (appearance_skin + 1) % 4;
+                else if (wardrobe_choice == 1)
+                    appearance_hair = (appearance_hair + 1) % 4;
+                else if (wardrobe_choice == 2)
+                    appearance_top = (appearance_top + 1) % 4;
+                else
+                    appearance_trousers = (appearance_trousers + 1) % 4;
+            }
+
+            if (down & KEY_B)
+                screen = SCREEN_BEDROOM;
+
+            /* Confirm and persist the selected character appearance. */
+            if (down & KEY_A) {
+                save_test_marker();
+                screen = SCREEN_BEDROOM;
+            }
+
         } else if (screen == SCREEN_OPTIONS) {
             if (down & KEY_A)
                 music_on = !music_on;
@@ -381,6 +651,8 @@ int main(void)
                         case SCREEN_OPTIONS: draw_options(); break;
                         case SCREEN_CREDITS: draw_credits(); break;
                         case SCREEN_SESSION: draw_session(); break;
+                        case SCREEN_BEDROOM: draw_bedroom(); break;
+                        case SCREEN_WARDROBE: draw_wardrobe(); break;
                     }
                 } else if (screen == SCREEN_MENU &&
                            selected != drawn_selected) {
