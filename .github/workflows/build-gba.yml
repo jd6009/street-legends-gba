@@ -1,0 +1,44 @@
+name: STREET LEGENDS GBA Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install devkitARM and GBA libraries
+        uses: devkitpro/setup-devkitpro@v1
+        with:
+          devkitarm: true
+          packages: gba-dev
+
+      - name: Verify compiler
+        run: |
+          arm-none-eabi-gcc --version
+          test -f "$DEVKITPRO/libgba/include/gba.h"
+
+      - name: Compile ROM
+        run: make clean all
+
+      - name: Verify ROM output
+        run: |
+          test -s street-legends.gba
+          file street-legends.gba
+          ls -lh street-legends.gba
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: street-legends-phase-1
+          path: street-legends.gba
+          if-no-files-found: error
