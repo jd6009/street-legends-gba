@@ -1,28 +1,29 @@
 TARGET := street-legends
 BUILD := build
 SOURCES := src
-INCLUDES :=
+DEVKITPRO ?= /opt/devkitpro
 
-CFILES := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
-OFILES := $(CFILES:%.c=$(BUILD)/%.o)
+CFILES := $(wildcard $(SOURCES)/*.c)
+OFILES := $(patsubst $(SOURCES)/%.c,$(BUILD)/%.o,$(CFILES))
 
 CC := arm-none-eabi-gcc
-LD := arm-none-eabi-gcc
-
-ARCH := -mthumb -mthumb-interwork
-CFLAGS := $(ARCH) -O2 -Wall -Wextra -ffunction-sections -fdata-sections
-LDFLAGS := $(ARCH) -specs=gba.specs -Wl,--gc-sections
+CFLAGS := -mthumb -mthumb-interwork -O2 -Wall -Wextra \
+          -ffunction-sections -fdata-sections \
+          -I$(DEVKITPRO)/libgba/include
+LDFLAGS := -mthumb -mthumb-interwork -specs=gba.specs \
+           -Wl,--gc-sections \
+           -L$(DEVKITPRO)/libgba/lib -lgba
 
 .PHONY: all clean
 
 all: $(TARGET).gba
 
 $(TARGET).gba: $(OFILES)
-	$(LD) $(LDFLAGS) $(OFILES) -o $@
+	$(CC) $(LDFLAGS) $(OFILES) -o $@
 
-$(BUILD)/%.o: %.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+$(BUILD)/%.o: $(SOURCES)/%.c
+	mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(BUILD) $(TARGET).gba
