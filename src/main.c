@@ -450,7 +450,6 @@ static void draw_bedroom(void)
 
 static void draw_wardrobe(void)
 {
-    draw_bedroom();
     rect(20, 15, 200, 127, RGB5(2, 3, 8));
     rect(22, 17, 196, 123, RGB5(7, 8, 14));
     line(22, 17, 217, 17, COL_BLUE);
