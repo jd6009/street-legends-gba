@@ -233,33 +233,44 @@ static void save_test_marker(void)
     SRAM[0] = magic[0];
 }
 
-static void draw_menu_panel(void)
+static void draw_menu_row(int i)
 {
     const char *items[4] = {"NEW GAME", "CONTINUE", "OPTIONS", "CREDITS"};
+    int y = 82 + i * 16;
     int has_save = save_valid();
 
+    /* Clear only this row before drawing its current state. */
+    rect(52, y - 2, 136, 12, rgb(5, 6, 12));
+
+    if (i == selected) {
+        rect(52, y - 2, 136, 12, rgb(14, 4, 8));
+        text(">", 58, y, 1, COL_GOLD);
+    }
+
+    u16 color = (i == 1 && !has_save) ? COL_GREY : COL_WHITE;
+    text(items[i], 72, y, 1, color);
+
+    if (i == 1 && !has_save)
+        text("NO SAVE", 132, y, 1, COL_GREY);
+}
+
+static void draw_menu_hints(void)
+{
+    text("A SELECT", 48, 138, 1, COL_GOLD);
+    text("B BACK", 142, 138, 1, COL_GOLD);
+}
+
+static void draw_menu_panel(void)
+{
     rect(40, 72, 160, 78, rgb(2, 3, 8));
     rect(42, 74, 156, 74, rgb(5, 6, 12));
     line(42, 74, 198, 74, COL_BLUE);
     line(42, 148, 198, 148, COL_RED);
 
-    for (int i = 0; i < 4; i++) {
-        int y = 82 + i * 16;
+    for (int i = 0; i < 4; i++)
+        draw_menu_row(i);
 
-        if (i == selected) {
-            rect(52, y - 2, 136, 12, rgb(14, 4, 8));
-            text(">", 58, y, 1, COL_GOLD);
-        }
-
-        u16 color = (i == 1 && !has_save) ? COL_GREY : COL_WHITE;
-        text(items[i], 72, y, 1, color);
-
-        if (i == 1 && !has_save)
-            text("NO SAVE", 132, y, 1, COL_GREY);
-    }
-
-    text("A SELECT", 48, 138, 1, COL_GOLD);
-    text("B BACK", 142, 138, 1, COL_GOLD);
+    draw_menu_hints();
 }
 
 static void draw_menu(void)
@@ -373,7 +384,11 @@ int main(void)
                     }
                 } else if (screen == SCREEN_MENU &&
                            selected != drawn_selected) {
-                    draw_menu_panel();
+                    if (drawn_selected >= 0 && drawn_selected < 4)
+                        draw_menu_row(drawn_selected);
+
+                    draw_menu_row(selected);
+                    draw_menu_hints();
                 } else if (screen == SCREEN_OPTIONS &&
                            music_on != drawn_music_on) {
                     draw_options();
