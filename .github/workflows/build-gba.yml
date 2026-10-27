@@ -23,8 +23,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y wget
-          wget -q https://apt.devkitpro.org/install-devkitpro-pacman -O /tmp/install-devkitpro-pacman
+          wget -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0" -q https://apt.devkitpro.org/install-devkitpro-pacman -O /tmp/install-devkitpro-pacman
           chmod +x /tmp/install-devkitpro-pacman
+          sed -i 's/wget /wget -U "Mozilla\/5.0 (Windows NT 10.0; Win64; x64) Chrome\/120.0.0.0" /g' /tmp/install-devkitpro-pacman
           sudo /tmp/install-devkitpro-pacman
 
       - name: Install GBA development tools
