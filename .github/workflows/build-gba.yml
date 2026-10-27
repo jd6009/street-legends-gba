@@ -11,6 +11,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm:20260610
+
     env:
       DEVKITPRO: /opt/devkitpro
       DEVKITARM: /opt/devkitpro/devkitARM
@@ -19,35 +22,23 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Install devkitPro package manager
+      - name: Verify GBA toolchain
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0" -q https://apt.devkitpro.org/install-devkitpro-pacman -O /tmp/install-devkitpro-pacman
-          chmod +x /tmp/install-devkitpro-pacman
-          sed -i 's/wget /wget -U "Mozilla\/5.0 (Windows NT 10.0; Win64; x64) Chrome\/120.0.0.0" /g' /tmp/install-devkitpro-pacman
-          sudo /tmp/install-devkitpro-pacman
-
-      - name: Install GBA development tools
-        run: |
-          sudo dkp-pacman -Syu --noconfirm
-          sudo dkp-pacman -S --noconfirm gba-dev
-          echo "/opt/devkitpro/devkitARM/bin" >> "$GITHUB_PATH"
-          echo "/opt/devkitpro/tools/bin" >> "$GITHUB_PATH"
-
-      - name: Verify compiler and library
-        run: |
+          export PATH="/opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/pacman/bin:$PATH"
           arm-none-eabi-gcc --version
           test -f "$DEVKITPRO/libgba/include/gba.h"
+          echo "GBA compiler and library found."
 
       - name: Compile ROM
-        run: make clean all
+        run: |
+          export PATH="/opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/pacman/bin:$PATH"
+          make clean all
 
       - name: Verify ROM output
         run: |
           test -s street-legends.gba
-          file street-legends.gba
           ls -lh street-legends.gba
+          echo "ROM file exists and is not empty."
 
       - name: Upload ROM
         uses: actions/upload-artifact@v4
