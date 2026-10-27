@@ -437,7 +437,7 @@ static void draw_bedroom_background(void)
 
 }
 
-static u16 bedroom_background[SCREEN_W * SCREEN_H];
+static u16 bedroom_background[SCREEN_W * SCREEN_H] __attribute__((section(".ewram")));
 static int bedroom_background_ready = 0;
 
 static void draw_bedroom(void)
